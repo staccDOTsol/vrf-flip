@@ -1,9 +1,14 @@
 use crate::*;
 use anchor_spl::{
     associated_token::AssociatedToken,
-    token::{Mint, MintTo, Token, TokenAccount},
+    token::{Mint, Token, TokenAccount},
 };
-
+const HYDRA_ID: Pubkey = Pubkey::new_from_array([
+    10, 126, 203,  31, 202, 195,  95,  27,
+   175, 237,  98,  15, 124,  12, 118, 169,
+    56, 198, 194, 208,   7,  76, 111,  47,
+   128,  57,  55, 192,  81, 109,  36, 203
+ ]);
 #[derive(Accounts)]
 #[instruction(params: HouseInitParams)] // rpc parameters hint
 pub struct HouseInit<'info> {
@@ -11,7 +16,7 @@ pub struct HouseInit<'info> {
         init,
         space = 8 + std::mem::size_of::<HouseState>(),
         payer = payer,
-        seeds = [HOUSE_SEED],
+        seeds = [HOUSE_SEED, authority.key().as_ref(), mint.key().as_ref()],
         bump
     )]
     pub house: AccountLoader<'info, HouseState>,
@@ -28,11 +33,12 @@ pub struct HouseInit<'info> {
     pub switchboard_queue: AccountLoader<'info, OracleQueueAccountData>,
 
     #[account(
+        /*
         init_if_needed,
         payer = payer,
-        mint::decimals = 9,
+        mint::decimals = 2,
         mint::authority = house,
-        mint::freeze_authority = house,
+        mint::freeze_authority = house, */
     )]
     pub mint: Account<'info, Mint>,
     #[account(
@@ -53,6 +59,9 @@ pub struct HouseInit<'info> {
     /// CHECK:
     #[account(address = solana_program::sysvar::rent::ID)]
     pub rent: AccountInfo<'info>,
+    /// CHECK:
+    #[account(owner = HYDRA_ID)]
+    pub hydra: AccountInfo<'info>,
 }
 
 #[derive(Clone, AnchorSerialize, AnchorDeserialize)]
@@ -71,26 +80,7 @@ impl HouseInit<'_> {
         msg!("house_init");
 
         let house_bump = ctx.bumps.get("house").unwrap().clone();
-
-        if ctx.accounts.mint.mint_authority.is_some()
-            && ctx.accounts.mint.mint_authority.unwrap() == ctx.accounts.house.key()
-        {
-            let house_seeds: &[&[&[u8]]] = &[&[&HOUSE_SEED, &[house_bump]]];
-            msg!("minting 100_000_000 tokens to house vault");
-            token::mint_to(
-                CpiContext::new_with_signer(
-                    ctx.accounts.token_program.to_account_info().clone(),
-                    MintTo {
-                        mint: ctx.accounts.mint.to_account_info().clone(),
-                        authority: ctx.accounts.house.to_account_info().clone(),
-                        to: ctx.accounts.house_vault.to_account_info().clone(),
-                    },
-                    house_seeds,
-                ),
-                100_000_000_000_000_000,
-            )?;
-        }
-
+        
         let house = &mut ctx.accounts.house.load_init()?;
         house.bump = house_bump;
         house.authority = ctx.accounts.authority.key().clone();
@@ -98,6 +88,7 @@ impl HouseInit<'_> {
         house.mint = ctx.accounts.mint.key().clone();
         house.switchboard_queue = ctx.accounts.switchboard_queue.key().clone();
         house.house_vault = ctx.accounts.house_vault.key().clone();
+        house.hydra = ctx.accounts.hydra.key().clone();
         drop(house);
 
         Ok(())

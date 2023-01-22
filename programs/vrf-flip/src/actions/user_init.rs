@@ -2,7 +2,7 @@ use crate::*;
 
 use anchor_spl::{
     associated_token::AssociatedToken,
-    token::{spl_token::instruction::AuthorityType, Mint, MintTo, Token, TokenAccount},
+    token::{spl_token::instruction::AuthorityType, Mint, Token, TokenAccount},
 };
 
 #[derive(Accounts)]
@@ -21,7 +21,7 @@ pub struct UserInit<'info> {
     )]
     pub user: AccountLoader<'info, UserState>,
     #[account(
-        seeds = [HOUSE_SEED],
+        seeds = [HOUSE_SEED, house.load()?.authority.as_ref(), house.load()?.mint.as_ref()],
         bump = house.load()?.bump,
         has_one = mint
     )]
@@ -32,14 +32,14 @@ pub struct UserInit<'info> {
     #[account(mut, signer)]
     pub authority: AccountInfo<'info>,
     #[account(
-        init,
+        init_if_needed,
         payer = payer,
         token::mint = mint,
         token::authority = authority,
     )]
     pub escrow: Account<'info, TokenAccount>,
     #[account(
-        init,
+        init_if_needed,
         payer = payer,
         associated_token::mint = mint,
         associated_token::authority = authority,
@@ -102,15 +102,13 @@ impl UserInit<'_> {
         user.switchboard_state_bump = params.switchboard_state_bump;
         user.vrf_permission_bump = params.vrf_permission_bump;
         user.current_round = Round::default();
-        user.last_airdrop_request_slot = 0;
         user.history = History::default();
 
         drop(user);
 
         let house = ctx.accounts.house.load()?;
         let house_key = ctx.accounts.house.key().clone();
-        let house_seeds: &[&[&[u8]]] = &[&[&HOUSE_SEED, &[house.bump]]];
-        drop(house);
+        let house_seeds: &[&[&[u8]]] = &[&[&HOUSE_SEED, house.authority.as_ref(), house.mint.as_ref(), &[house.bump]]];
 
         msg!("setting user escrow authority to the house");
         token::set_authority(
@@ -152,24 +150,8 @@ impl UserInit<'_> {
             AuthorityType::CloseAccount,
             None,
         )?;
+        drop(house);
 
-        if ctx.accounts.mint.mint_authority.is_some()
-            && ctx.accounts.mint.mint_authority.unwrap() == ctx.accounts.house.key()
-        {
-            msg!("minting 10 tokens to users token wallet");
-            token::mint_to(
-                CpiContext::new_with_signer(
-                    ctx.accounts.token_program.to_account_info().clone(),
-                    MintTo {
-                        mint: ctx.accounts.mint.to_account_info().clone(),
-                        authority: ctx.accounts.house.to_account_info().clone(),
-                        to: ctx.accounts.reward_address.to_account_info().clone(),
-                    },
-                    house_seeds,
-                ),
-                10 * 1_000_000_000,
-            )?;
-        }
 
         Ok(())
     }

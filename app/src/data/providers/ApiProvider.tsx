@@ -2,7 +2,7 @@ import { useConnectedWallet } from '@gokiprotocol/walletkit';
 import * as anchor from '@project-serum/anchor';
 import { ConnectedWallet } from '@saberhq/use-solana';
 import * as spl from '@solana/spl-token';
-import { LAMPORTS_PER_SOL } from '@solana/web3.js';
+import { LAMPORTS_PER_SOL, PublicKey } from '@solana/web3.js';
 import * as switchboard from '@switchboard-xyz/solana.js';
 import _ from 'lodash';
 import React from 'react';
@@ -19,7 +19,7 @@ import { GameState } from '../store/gameStateReducer';
  */
 const RIBS_PER_RACK = 1000000000;
 
-type Cluster = 'devnet';
+type Cluster = 'mainnet-beta';
 
 enum ApiCommands {
   UserAirdrop = 'user airdrop',
@@ -116,7 +116,7 @@ class ApiState implements PrivateApiInterface {
   constructor(wallet: ConnectedWallet, dispatch: ThunkDispatch) {
     this.wallet = wallet;
     this.dispatch = dispatch;
-    this.cluster = 'devnet';
+    this.cluster = 'mainnet-beta';
 
     // Upon instantiation of this object, try to fetch user account and balance asynchronously.
     this.user.catch((e) => this.handleError(e));
@@ -157,7 +157,7 @@ class ApiState implements PrivateApiInterface {
 
     return api
       .getFlipProgram(this.rpc)
-      .then((program) => FlipProgram.load(program))
+      .then((program) => FlipProgram.load(program,  new PublicKey("4Vyh36V9dYQdqUtxWc2nEzvezLjKn5qW5rPWACo8wddF")))
       .then(
         (program) =>
           (this._program ??= (() => {
@@ -263,15 +263,7 @@ class ApiState implements PrivateApiInterface {
    * Attempt to airdrop to the user
    */
   private userAirdrop = async () => {
-    // User needs to be logged in and have accounts.
-    const user = await this.user;
 
-    // Build out and sign transactions.
-    this.log(`Building airdrop request...`);
-    const request = await user.airdropReq(this.wallet.publicKey);
-    await this.packSignAndSubmit([request]);
-
-    await this.playPrompt();
   };
 
   /**

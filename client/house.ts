@@ -42,9 +42,14 @@ export class House {
     this.state = state;
   }
 
-  static fromSeeds(programId: PublicKey): [PublicKey, number] {
+  static fromSeeds(programId: PublicKey,
+    mint: PublicKey,
+    authority: PublicKey 
+    ): [PublicKey, number] {
     return anchor.utils.publicKey.findProgramAddressSync(
-      [Buffer.from("HOUSESTATESEED")],
+      [Buffer.from("HOUSESTATESEED"),
+    authority.toBytes(),
+  mint.toBytes()],
       programId
     );
   }
@@ -78,11 +83,13 @@ export class House {
   static async create(
     program: anchor.Program,
     switchboardQueue: QueueAccount,
-    mint: Keypair = anchor.web3.Keypair.generate()
+    mint: Keypair = anchor.web3.Keypair.generate(),
+    houseAuthority: PublicKey = (program.provider as anchor.AnchorProvider).wallet.publicKey
   ): Promise<House> {
     const [initHouse, houseKey] = await House.createReq(
       program,
       switchboardQueue,
+      houseAuthority,
       mint
     );
 
@@ -109,11 +116,12 @@ export class House {
   static async createReq(
     program: anchor.Program,
     switchboardQueue: QueueAccount,
+    houseAuthority: PublicKey = (program.provider as anchor.AnchorProvider).wallet.publicKey,
     mint: Keypair = anchor.web3.Keypair.generate()
   ): Promise<[TransactionObject, PublicKey]> {
     const payer = switchboardQueue.program.walletPubkey;
 
-    const [houseKey, houseBump] = House.fromSeeds(program.programId);
+    const [houseKey, houseBump] = House.fromSeeds(program.programId, mint.publicKey, houseAuthority);
 
     const mintPubkey: PublicKey = mint.publicKey;
 
@@ -132,6 +140,8 @@ export class House {
         mint: mintPubkey,
         houseVault: tokenVault,
         payer: payer,
+        hydra: 
+           new PublicKey("ADih34mBjvzp5kw6nLvfX5pVdnYAcxGy8arJ4qdGojqW"),
         systemProgram: anchor.web3.SystemProgram.programId,
         tokenProgram: TOKEN_PROGRAM_ID,
         associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
@@ -142,9 +152,13 @@ export class House {
     return [new TransactionObject(payer, [initHouse], [mint]), houseKey];
   }
 
-  static async load(program: anchor.Program): Promise<House> {
+  static async load(program: anchor.Program,
+    mint: PublicKey,
+    houseAuthority: PublicKey = (program.provider as anchor.AnchorProvider).wallet.publicKey,
+    ): Promise<House> {
     const connection = program.provider.connection;
-    const [houseKey, houseBump] = House.fromSeeds(program.programId);
+    
+    const [houseKey, houseBump] = House.fromSeeds(program.programId, mint, houseAuthority);
 
     let houseState = await HouseState.fetch(connection, houseKey);
     if (houseState !== null) {
@@ -157,10 +171,13 @@ export class House {
   static async getOrCreate(
     program: anchor.Program,
     switchboardQueue: QueueAccount,
-    mint?: Keypair
+    params: {
+    mint?: Keypair,
+    mintPublickey?: PublicKey
+    }
   ): Promise<House> {
     try {
-      const house = await House.load(program);
+      const house = await House.load(program, params.mintPublickey ?? params.mint.publicKey );
       return house;
     } catch (error: any) {
       if (
@@ -170,7 +187,7 @@ export class House {
       }
     }
 
-    return House.create(program, switchboardQueue, mint ?? Keypair.generate());
+    return House.create(program, switchboardQueue, params.mint ?? Keypair.generate());
   }
 
   async loadMint(): Promise<Mint> {

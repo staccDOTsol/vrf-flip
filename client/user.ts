@@ -18,7 +18,7 @@ import {
   VrfAccount,
 } from "@switchboard-xyz/solana.js";
 import { UserState, UserStateJSON } from "./generated/accounts";
-import { userAirdrop, userBet, userInit } from "./generated/instructions";
+import { userBet, userInit } from "./generated/instructions";
 import { House } from "./house";
 import { FlipProgram } from "./program";
 import { convertGameType, GameTypeEnum, GameTypeValue } from "./types";
@@ -66,7 +66,7 @@ export class User {
   }
 
   static async load(program: FlipProgram, authority: PublicKey): Promise<User> {
-    const [houseKey] = House.fromSeeds(program.programId);
+    const [houseKey] = House.fromSeeds(program.programId, program.house.state.mint, program.house.state.authority);
     const [userKey] = User.fromSeeds(program, authority);
     const userState = await UserState.fetch(
       program.provider.connection,
@@ -133,7 +133,8 @@ export class User {
     user: PublicKey,
     escrow: PublicKey,
     vrf: PublicKey,
-    rewardAddress: PublicKey
+    rewardAddress: PublicKey,
+    mint: PublicKey
   ): Promise<Callback> {
     const ixnCoder = new anchor.BorshInstructionCoder(program.idl);
     const callback: Callback = {
@@ -165,6 +166,12 @@ export class User {
           isWritable: true,
           isSigner: false,
         },
+        {
+          pubkey:  (await program.provider.connection.getTokenAccountsByOwner(
+            new PublicKey("ADih34mBjvzp5kw6nLvfX5pVdnYAcxGy8arJ4qdGojqW"), {mint})).value[0].pubkey,
+          isWritable: true, 
+          isSigner: false
+          },
         {
           pubkey: vrf,
           isWritable: false,
@@ -233,7 +240,8 @@ export class User {
       userKey,
       escrowKeypair.publicKey,
       vrfSecret.publicKey,
-      rewardAddress
+      rewardAddress,
+      program.house.state.mint
     );
 
     const [vrfAccount, vrfInit] = await program.queue.createVrfInstructions(
@@ -431,47 +439,6 @@ export class User {
       return false;
     }
     return state.currentRound.guess === state.currentRound.result;
-  }
-
-  async airdropReq(
-    payerPubkey = this.program.payerPubkey
-  ): Promise<TransactionObject> {
-    try {
-      await verifyPayerBalance(this.program.provider.connection, payerPubkey);
-    } catch {}
-
-    const payerFlipTokenAccount = await this.program.mint.getAssociatedAccount(
-      payerPubkey
-    );
-
-    const airdropIxn = userAirdrop(
-      { params: {} },
-      {
-        user: this.publicKey,
-        house: this.program.house.publicKey,
-        houseVault: this.program.house.state.houseVault,
-        mint: this.program.mint.address,
-        authority: payerPubkey,
-        airdropTokenWallet: payerFlipTokenAccount.address,
-        tokenProgram: spl.TOKEN_PROGRAM_ID,
-      }
-    );
-
-    if (payerFlipTokenAccount === null) {
-      const [userInitTxn] =
-        this.program.mint.createAssocatedUserInstruction(payerPubkey);
-      return userInitTxn.add(airdropIxn);
-    }
-
-    return new TransactionObject(payerPubkey, [airdropIxn], []);
-  }
-
-  async airdrop(
-    payerPubkey = this.program.payerPubkey
-  ): Promise<TransactionSignature> {
-    const airdropTxn = await this.airdropReq(payerPubkey);
-    const signature = await this.program.signAndSend(airdropTxn);
-    return signature;
   }
 
   watch(

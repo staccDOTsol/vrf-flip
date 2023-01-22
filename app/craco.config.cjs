@@ -16,6 +16,7 @@ module.exports = {
       config.plugins.unshift(
         new webpack.ProvidePlugin({
           Buffer: ['buffer', 'Buffer'],
+       
         })
       );
 
@@ -28,11 +29,12 @@ module.exports = {
 
       // solana wallet adapter, ledger need to be transpiled
       config.module.rules.push({
-        test: /\.js/,
+        test: /\.(m|j)s/,
         loader: require.resolve('babel-loader'),
         exclude: (file) =>
           !file.includes('@solana/wallet-adapter') &&
           !file.includes('@ledgerhq/devices') &&
+          !file.includes('./spl-token') &&
           !file.includes('@saberhq/use-solana'),
       });
       return config;
@@ -48,7 +50,7 @@ module.exports = {
             os: false,
             path: false,
             child_process: false,
-            // process: false,
+            process: false,
             assert: require.resolve('assert/'),
             crypto: require.resolve('crypto-browserify/'),
             // util: require.resolve('util/'),

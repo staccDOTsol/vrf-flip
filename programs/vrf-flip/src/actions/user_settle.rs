@@ -19,7 +19,7 @@ pub struct UserSettle<'info> {
     )]
     pub user: AccountLoader<'info, UserState>,
     #[account(
-        seeds = [HOUSE_SEED],
+        seeds = [HOUSE_SEED, house.load()?.authority.as_ref(), house.load()?.mint.as_ref()],
         bump = house.load()?.bump,
         has_one = house_vault,
     )]
@@ -44,6 +44,13 @@ pub struct UserSettle<'info> {
         token::authority = house,
     )]
     pub house_vault: Account<'info, TokenAccount>,
+    /// CHECK:
+    #[account(
+        mut,
+        token::mint = house.load()?.mint,
+        token::authority = house.load()?.hydra,
+    )]
+    pub hydra_ata: Account<'info, TokenAccount>,
 
     /// CHECK:
     #[account(
@@ -76,8 +83,7 @@ impl UserSettle<'_> {
 
         let house = ctx.accounts.house.load()?;
         let house_bump = house.bump.clone();
-        let house_seeds: &[&[&[u8]]] = &[&[&HOUSE_SEED, &[house_bump]]];
-        drop(house);
+        let house_seeds: &[&[&[u8]]] = &[&[&HOUSE_SEED, house.authority.as_ref(), house.mint.as_ref(), &[house_bump]]];
 
         let vrf = ctx.accounts.vrf.load()?;
         if vrf.authority != ctx.accounts.user.key() {
@@ -111,7 +117,7 @@ impl UserSettle<'_> {
             transfer(
                 &ctx.accounts.token_program,
                 &ctx.accounts.escrow,
-                &ctx.accounts.reward_address,
+                &ctx.accounts.hydra_ata,
                 &ctx.accounts.house.to_account_info(),
                 house_seeds,
                 ctx.accounts.escrow.amount,
@@ -128,6 +134,7 @@ impl UserSettle<'_> {
                 user.current_round.bet_amount,
             )?;
         }
+        drop(house);
 
         emit!(UserBetSettled {
             round_id: user.current_round.round_id,

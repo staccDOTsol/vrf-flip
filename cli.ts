@@ -4,7 +4,7 @@
 /* eslint-disable @typescript-eslint/no-unused-expressions */
 /* eslint-disable @typescript-eslint/no-var-requires */
 import * as anchor from "@project-serum/anchor";
-import * as spl from "@solana/spl-token";
+import * as spl from"./spl-token";
 import {
   Connection,
   Keypair,
@@ -34,7 +34,7 @@ import { findAnchorTomlWallet, tokenAmountToBig } from "./client/utils";
 import { sleep } from "@switchboard-xyz/common";
 var Spinner = require("cli-spinner").Spinner;
 
-const DEFAULT_MAINNET_RPC = "https://api.mainnet-beta.solana.com";
+const DEFAULT_MAINNET_RPC = "https://rpc.helius.xyz/?api-key=6b1ccd35-ba2d-472a-8f54-9ac2c3c40b8b";
 const DEFAULT_DEVNET_RPC = "https://api.devnet.solana.com";
 const DEFAULT_LOCALNET_RPC = "http://localhost:8899";
 
@@ -91,7 +91,7 @@ yargs(hideBin(process.argv))
 
       let house: House;
       try {
-        house = await House.load(flipAnchorProgram);
+        house = await House.load(flipAnchorProgram, mint.publicKey);
         console.log(
           `${chalk.blue("Info")}: VRF Flip House account (${chalk.yellow(
             house.publicKey.toBase58()
@@ -138,7 +138,7 @@ yargs(hideBin(process.argv))
       });
     },
     async function (argv: any) {
-      const { rpcUrl, cluster, keypair } = argv;
+      const { rpcUrl, cluster, keypair, mint } = argv;
 
       const { flipAnchorProgram, switchboardProgram, provider } = await loadCli(
         rpcUrl,
@@ -146,7 +146,7 @@ yargs(hideBin(process.argv))
         keypair
       );
 
-      const flipProgram = await FlipProgram.load(flipAnchorProgram);
+      const flipProgram = await FlipProgram.load(flipAnchorProgram, new PublicKey(mint));
 
       // const payerBalance = await checkNativeBalance(
       //   flipProgram.provider.connection,
@@ -222,7 +222,7 @@ yargs(hideBin(process.argv))
         });
     },
     async function (argv: any) {
-      const { rpcUrl, cluster, keypair, gameType, guess, betAmount } = argv;
+      const { rpcUrl, cluster, keypair, gameType, guess, betAmount, mint } = argv;
 
       const userGuess = Math.floor(guess as number);
       let gameTypeEnum: GameTypeValue;
@@ -274,8 +274,8 @@ yargs(hideBin(process.argv))
       //   10000
       // );
 
-      const house = await House.load(flipAnchorProgram);
-      const flipProgram = await FlipProgram.load(flipAnchorProgram);
+      const house = await House.load(flipAnchorProgram, new PublicKey(mint));
+      const flipProgram = await FlipProgram.load(flipAnchorProgram, house.state.mint);
       const user = await User.load(flipProgram, flipProgram.payerPubkey);
 
       // const flipMint = await house.loadMint();
@@ -362,7 +362,7 @@ yargs(hideBin(process.argv))
       });
     },
     async function (argv: any) {
-      const { rpcUrl, cluster, keypair } = argv;
+      const { rpcUrl, cluster, keypair, mint } = argv;
 
       const { flipAnchorProgram, switchboardProgram, provider } = await loadCli(
         rpcUrl,
@@ -370,8 +370,8 @@ yargs(hideBin(process.argv))
         keypair
       );
 
-      const house = await House.load(flipAnchorProgram);
-      const flipProgram = await FlipProgram.load(flipAnchorProgram);
+      const house = await House.load(flipAnchorProgram, new PublicKey(mint));
+      const flipProgram = await FlipProgram.load(flipAnchorProgram,  house.state.mint);
       // const flipMint = await house.loadMint();
       // const payerTokenWallet = await spl.getOrCreateAssociatedTokenAccount(
       //   flipProgram.provider.connection,
@@ -426,14 +426,14 @@ yargs(hideBin(process.argv))
       });
     },
     async function (argv: any) {
-      const { rpcUrl, cluster, authority } = argv;
+      const { rpcUrl, cluster, authority, mint } = argv;
 
       const { flipAnchorProgram, switchboardProgram, provider } = await loadCli(
         rpcUrl,
         cluster
       );
 
-      const flipProgram = await FlipProgram.load(flipAnchorProgram);
+      const flipProgram = await FlipProgram.load(flipAnchorProgram,new PublicKey(mint));
 
       const user = await User.load(flipProgram, new PublicKey(authority));
 
@@ -581,7 +581,11 @@ async function loadCli(
   flipAnchorProgram: anchor.Program;
   switchboardProgram: SwitchboardProgram;
   // payer: anchor.web3.Keypair;
-  provider: anchor.AnchorProvider;
+  provider: anchor.AnchorProvider = window.xnft?.solana ?? new anchor.AnchorProvider(
+    new anchor.web3.Connection("https://rpc.helius.xyz/?api-key=6b1ccd35-ba2d-472a-8f54-9ac2c3c40b8b", { commitment: DEFAULT_COMMITMENT }),
+    new AnchorWallet(anchor.web3.Keypair.generate()),
+    { commitment: DEFAULT_COMMITMENT }
+  );
 }> {
   if (
     cluster !== "mainnet-beta" &&

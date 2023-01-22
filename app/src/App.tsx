@@ -1,3 +1,9 @@
+
+declare global {
+  interface Window {
+    xnft: any;
+  }
+}
 import { css } from '@emotion/react';
 import { WalletKitProvider } from '@gokiprotocol/walletkit';
 import { GlobalStyles } from '@mui/material';
@@ -21,7 +27,7 @@ const App: React.FC = () => {
   document.body.style.backgroundColor = '#1c1c1c';
 
   return (
-    <WalletKitProvider app={{ name: 'SwitchFlips' }} defaultNetwork={'devnet'}>
+    <WalletKitProvider app={{ name: 'SwitchFlips' }} defaultNetwork={'mainnet-beta'}>
       <DataLayer>
         {inputGlobalStyles}
         <div style={{ display: 'flex', flexDirection: 'column' }}>

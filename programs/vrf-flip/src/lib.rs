@@ -29,7 +29,7 @@ use num_derive::*;
 
 use solana_security_txt::security_txt;
 
-declare_id!("FLiPhaxG6sdasFpRoc17u1QKq96g2p2BTNNT1rqXvcnC");
+declare_id!("UUNnGwg9nNYci6hL1rwr15vobxWSncghgjCvMHp6EL9");
 
 const HOUSE_SEED: &[u8] = b"HOUSESTATESEED";
 const USER_SEED: &[u8] = b"USERSTATESEED";
@@ -62,13 +62,6 @@ pub mod switchboard_vrf_flip {
     ) -> anchor_lang::Result<()> {
         UserSettle::actuate(&ctx, &params)
     }
-    #[access_control(ctx.accounts.validate(&ctx, &params))]
-    pub fn user_airdrop(
-        ctx: Context<UserAirdrop>,
-        params: UserAirdropParams,
-    ) -> anchor_lang::Result<()> {
-        UserAirdrop::actuate(&ctx, &params)
-    }
 }
 
 #[account(zero_copy)]
@@ -85,6 +78,8 @@ pub struct HouseState {
     pub switchboard_queue: Pubkey,
     // switchboard mint for vrf requests
     pub switchboard_mint: Pubkey,
+    // switchboard mint for vrf requests
+    pub hydra: Pubkey,
     // Buffer for future use
     pub _ebuf: [u8; 1024],
 }
@@ -181,7 +176,6 @@ pub struct UserState {
     pub switchboard_state_bump: u8,
     pub vrf_permission_bump: u8,
     pub current_round: Round,
-    pub last_airdrop_request_slot: u64,
     pub _ebuf: [u8; 1024],
     pub history: History,
 }
@@ -239,10 +233,6 @@ pub enum VrfFlipError {
     OracleQueueRequiresPermissions,
     #[msg("VRF account belongs to the incorrect oracle queue")]
     OracleQueueMismatch,
-    #[msg("User requested an airdrop too soon")]
-    AirdropRequestedTooSoon,
-    #[msg("User has enough funds and does not require an airdrop")]
-    UserTokenBalanceHealthy,
     #[msg("Max bet exceeded")]
     MaxBetAmountExceeded,
     #[msg("Insufficient funds to request randomness")]

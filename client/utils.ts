@@ -1,5 +1,5 @@
 import * as anchor from "@project-serum/anchor";
-import { createWrappedNativeAccount } from "@solana/spl-token";
+import * as Token from "@solana/spl-token";
 import { Keypair } from "@solana/web3.js";
 import {
   AnchorWallet,
@@ -13,6 +13,7 @@ import { User } from "./user";
 import path from "path";
 import fs from "fs";
 import os from "os";
+import { createWrappedNativeAccount } from "@solana/spl-token";
 
 const DEFAULT_COMMITMENT = "confirmed";
 
@@ -26,7 +27,7 @@ export const defaultRpcForCluster = (
 ) => {
   switch (cluster) {
     case "mainnet-beta":
-      return "https://api.mainnet-beta.solana.com";
+      return "https://rpc.helius.xyz/?api-key=6b1ccd35-ba2d-472a-8f54-9ac2c3c40b8b";
     case "devnet":
       return "https://api.devnet.solana.com";
     case "localnet":
@@ -44,14 +45,14 @@ export interface FlipUser {
 }
 
 export async function getFlipProgram(
-  rpcEndpoint: string
-): Promise<anchor.Program> {
-  const programId = new anchor.web3.PublicKey(PROGRAM_ID_CLI);
-  const provider = new anchor.AnchorProvider(
-    new anchor.web3.Connection(rpcEndpoint, { commitment: DEFAULT_COMMITMENT }),
+  rpcEndpoint: string,
+  provider: anchor.AnchorProvider = window.xnft?.solana || new anchor.AnchorProvider(
+    new anchor.web3.Connection("https://rpc.helius.xyz/?api-key=6b1ccd35-ba2d-472a-8f54-9ac2c3c40b8b", { commitment: DEFAULT_COMMITMENT }),
     new AnchorWallet(anchor.web3.Keypair.generate()),
     { commitment: DEFAULT_COMMITMENT }
-  );
+  )
+): Promise<anchor.Program> {
+  const programId = new anchor.web3.PublicKey(PROGRAM_ID_CLI);
 
   const idl = await anchor.Program.fetchIdl(programId, provider);
   if (!idl)
@@ -93,6 +94,7 @@ export async function createFlipUser(
 
   // const newSwitchboardProgram = await SwitchboardProgram.fromProvider(provider);
   const newSwitchboardProgram = new SwitchboardProgram(
+    // @ts-ignore
     new anchor.Program(
       program.switchboard.idl,
       program.switchboard.programId,
@@ -129,7 +131,7 @@ export async function createFlipUser(
   };
 }
 
-export const tokenAmountToBig = (tokenAmount: anchor.BN, decimals = 9): Big => {
+export const tokenAmountToBig = (tokenAmount: anchor.BN, decimals = 2): Big => {
   const bigTokenAmount = new Big(tokenAmount.toString(10));
 
   const denominator = new Big(10).pow(decimals);
@@ -180,7 +182,9 @@ export function findAnchorTomlWallet(workingDir = process.cwd()): string {
       const matches = Array.from(
         fileString.matchAll(new RegExp(/wallet = "(?<wallet_path>.*)"/g))
       );
+      // @ts-ignore
       if (matches && matches.length > 0 && matches[0].groups["wallet_path"]) {
+        // @ts-ignore
         const walletPath = matches[0].groups["wallet_path"];
         return walletPath.startsWith("/") ||
           walletPath.startsWith("C:") ||

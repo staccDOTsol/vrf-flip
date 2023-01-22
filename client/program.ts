@@ -67,6 +67,7 @@ export class FlipProgram {
 
   static async load(
     program: anchor.Program,
+    mintPublickey?: PublicKey,
     params?: {
       queuePubkey?: PublicKey;
       mintKeypair?: Keypair;
@@ -76,7 +77,7 @@ export class FlipProgram {
       program.provider as anchor.AnchorProvider
     );
 
-    const [houseKey] = House.fromSeeds(program.programId);
+    const [houseKey] = House.fromSeeds(program.programId, mintPublickey, (program.provider as anchor.AnchorProvider).wallet.publicKey);
     const houseState = await HouseState.fetch(
       program.provider.connection,
       houseKey
