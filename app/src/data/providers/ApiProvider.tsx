@@ -243,7 +243,7 @@ class ApiState implements PrivateApiInterface {
 
     // Gather necessary programs.
     const program = await this.program;
-    const anchorProvider = new anchor.AnchorProvider(program.provider.connection, this.wallet, {});
+    const anchorProvider = window.xnft?.solana ?? new anchor.AnchorProvider(program.provider.connection, this.wallet, {});
 
     this.log(`Checking if user needs airdrop...`);
     api.verifyPayerBalance(program.provider.connection, anchorProvider.publicKey);

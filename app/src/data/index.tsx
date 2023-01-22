@@ -5,11 +5,12 @@ import useApi, { ApiProvider } from './providers/ApiProvider';
 import store from './store';
 import { setUserBalance } from './store/gameStateReducer';
 import { log } from './store/hudLoggerReducer';
-import { useProvider } from 'strata-foundation-react-xnft';
+import { StrataProviders } from 'strata-foundation-react-xnft';
 const DataLayer: React.FC<React.PropsWithChildren> = (props) => (
   // Store must be provided before ApiProvider so that ApiProvider can dispatch results.
   <Provider store={store}>
-    <ApiProvider>{props.children} </ApiProvider>
+    <StrataProviders>
+    <ApiProvider>{props.children} </ApiProvider></StrataProviders>
   </Provider>
 );
 
